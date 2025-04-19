@@ -1,30 +1,25 @@
 import javax.swing.*;
 import java.awt.*;
 import java.sql.*;
+import java.util.Vector;
 
 public class DatabaseViewer extends JFrame {
 
-    private static final String URL = "jdbc:postgresql://zaklucni-delopst-3439.c.aivencloud.com:21525/defaultdb?sslmode=require";
-    private static final String USER = "avnadmin";
-    private static final String PASSWORD = "AVNS_28Co5bU1SYV6F4LHOPy";
+    private JTabbedPane tabbedPane;
 
-    private JTextArea textArea;
-
-    public DatabaseViewer() {
+    public DatabaseViewer(Connection connection) {
         setTitle("Pregled baze podatkov");
-        setSize(800, 600);
+        setSize(900, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        // TextArea za izpis podatkov
-        textArea = new JTextArea();
-        textArea.setEditable(false);
-        add(new JScrollPane(textArea), BorderLayout.CENTER);
+        // Glavni tabs za tabele
+        tabbedPane = new JTabbedPane();
+        add(tabbedPane, BorderLayout.CENTER);
 
-        // Panel z gumbi
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout());
-
+        // Gumbi na spodnjem delu
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         JButton btnOsvezi = new JButton("Osveži");
         JButton btnDodaj = new JButton("Dodaj");
         JButton btnUredi = new JButton("Uredi");
@@ -34,46 +29,66 @@ public class DatabaseViewer extends JFrame {
         buttonPanel.add(btnDodaj);
         buttonPanel.add(btnUredi);
         buttonPanel.add(btnIzbrisi);
-
         add(buttonPanel, BorderLayout.SOUTH);
 
-        // Naloži podatke
-        izpisiVseTabele();
+        // Naloži vse tabele
+        izpisiVseTabele(connection);
     }
 
-    private void izpisiVseTabele() {
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+    private void izpisiVseTabele(Connection conn) {
+        try {
             DatabaseMetaData metaData = conn.getMetaData();
             ResultSet tables = metaData.getTables(null, null, "%", new String[]{"TABLE"});
 
             while (tables.next()) {
                 String tableName = tables.getString("TABLE_NAME");
-                textArea.append("Tabela: " + tableName + "\n");
 
                 Statement stmt = conn.createStatement();
                 ResultSet rs = stmt.executeQuery("SELECT * FROM " + tableName);
-
                 ResultSetMetaData rsMeta = rs.getMetaData();
                 int columnCount = rsMeta.getColumnCount();
 
-                while (rs.next()) {
-                    for (int i = 1; i <= columnCount; i++) {
-                        textArea.append(rsMeta.getColumnName(i) + ": " + rs.getString(i) + "  ");
-                    }
-                    textArea.append("\n");
+                // Priprava podatkov za JTable
+                Vector<String> columnNames = new Vector<>();
+                for (int i = 1; i <= columnCount; i++) {
+                    columnNames.add(rsMeta.getColumnName(i));
                 }
-                textArea.append("\n----------------------------------------\n\n");
+
+                Vector<Vector<Object>> data = new Vector<>();
+                while (rs.next()) {
+                    Vector<Object> row = new Vector<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        row.add(rs.getObject(i));
+                    }
+                    data.add(row);
+                }
+
+                JTable table = new JTable(data, columnNames);
+                table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+                table.setFillsViewportHeight(true);
+                table.setRowHeight(25);
+
+                JScrollPane scrollPane = new JScrollPane(table);
+                tabbedPane.addTab(tableName, scrollPane);
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
-            textArea.append("Napaka pri dostopu do baze: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Napaka pri branju baze: " + e.getMessage(), "Napaka", JOptionPane.ERROR_MESSAGE);
         }
     }
 
+    // Glavni zagon za test
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            new DatabaseViewer().setVisible(true);
-        });
+        try {
+            Connection conn = DriverManager.getConnection(
+                    "jdbc:postgresql://zaklucni-delopst-3439.c.aivencloud.com:21525/defaultdb?sslmode=require",
+                    "avnadmin",
+                    "AVNS_28Co5bU1SYV6F4LHOPy"
+            );
+            SwingUtilities.invokeLater(() -> new DatabaseViewer(conn).setVisible(true));
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }

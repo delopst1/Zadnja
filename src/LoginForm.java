@@ -2,6 +2,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.Connection;
 
 public class LoginForm extends JFrame {
     private JTextField emailField;
@@ -29,7 +30,7 @@ public class LoginForm extends JFrame {
         panel.add(emailField);
         panel.add(davcnaLabel);
         panel.add(davcnaField);
-        panel.add(new JLabel());
+        panel.add(new JLabel()); // prazen prostor
         panel.add(loginButton);
 
         add(panel);
@@ -49,11 +50,18 @@ public class LoginForm extends JFrame {
                             "Prijava uspešna!\nPozdravljen/a, " + user.getIme() + " " + user.getPriimek(),
                             "Uspeh", JOptionPane.INFORMATION_MESSAGE);
 
-                    // Odpri DatabaseViewer in zapri LoginForm
+                    // Odpri DatabaseViewer z obstoječo povezavo
                     SwingUtilities.invokeLater(() -> {
-                        new DatabaseViewer().setVisible(true);
+                        try {
+                            Connection conn = DatabaseManager.getConnection();
+                            new DatabaseViewer(conn).setVisible(true);
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                            JOptionPane.showMessageDialog(null, "Napaka pri povezavi z bazo!", "Napaka", JOptionPane.ERROR_MESSAGE);
+                        }
                     });
-                    dispose(); // zapre trenutno LoginForm okno
+
+                    dispose(); // zapri LoginForm
 
                 } else {
                     JOptionPane.showMessageDialog(null,

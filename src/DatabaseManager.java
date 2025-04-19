@@ -8,7 +8,7 @@ public class DatabaseManager {
 
 
     // Povezava z bazo
-    private static Connection getConnection() throws SQLException {
+    public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(URL, USER, PASSWORD);
     }
 
