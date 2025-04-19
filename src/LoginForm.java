@@ -14,7 +14,6 @@ public class LoginForm extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-
         JPanel panel = new JPanel();
         panel.setLayout(new GridLayout(3, 2, 10, 10));
 
@@ -35,19 +34,27 @@ public class LoginForm extends JFrame {
 
         add(panel);
 
+        // Dogodek za klik na gumb
         loginButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String email = emailField.getText().trim();
                 String davcna = davcnaField.getText().trim();
 
-                // Preverjanje uporabnika z uporabo DatabaseManager
+                // Preveri uporabnika
                 User user = DatabaseManager.prijaviUporabnika(email, davcna);
 
                 if (user != null) {
                     JOptionPane.showMessageDialog(null,
                             "Prijava uspešna!\nPozdravljen/a, " + user.getIme() + " " + user.getPriimek(),
                             "Uspeh", JOptionPane.INFORMATION_MESSAGE);
+
+                    // Odpri DatabaseViewer in zapri LoginForm
+                    SwingUtilities.invokeLater(() -> {
+                        new DatabaseViewer().setVisible(true);
+                    });
+                    dispose(); // zapre trenutno LoginForm okno
+
                 } else {
                     JOptionPane.showMessageDialog(null,
                             "Nepravilen email ali davčna številka!",
@@ -55,6 +62,11 @@ public class LoginForm extends JFrame {
                 }
             }
         });
+    }
 
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            new LoginForm().setVisible(true);
+        });
     }
 }
