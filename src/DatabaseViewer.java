@@ -7,18 +7,16 @@ public class DatabaseViewer extends JFrame {
 
     private JTabbedPane tabbedPane;
 
-    public DatabaseViewer(Connection connection) {
+    public DatabaseViewer(Connection connection, String identifikator) {
         setTitle("Pregled baze podatkov");
         setSize(900, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        // Glavni tabs za tabele
         tabbedPane = new JTabbedPane();
         add(tabbedPane, BorderLayout.CENTER);
 
-        // Gumbi na spodnjem delu
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         JButton btnOsvezi = new JButton("Osveži");
         JButton btnDodaj = new JButton("Dodaj");
@@ -26,13 +24,34 @@ public class DatabaseViewer extends JFrame {
         JButton btnIzbrisi = new JButton("Izbriši");
 
         buttonPanel.add(btnOsvezi);
-        buttonPanel.add(btnDodaj);
-        buttonPanel.add(btnUredi);
-        buttonPanel.add(btnIzbrisi);
+
+        boolean jeAdmin = jeUporabnikAdmin(connection, identifikator);
+        if (jeAdmin) {
+            buttonPanel.add(btnDodaj);
+            buttonPanel.add(btnUredi);
+            buttonPanel.add(btnIzbrisi);
+        }
+
         add(buttonPanel, BorderLayout.SOUTH);
 
-        // Naloži vse tabele
         izpisiVseTabele(connection);
+    }
+
+    private boolean jeUporabnikAdmin(Connection conn, String identifikator) {
+        try {
+            String sql = "SELECT je_admin FROM student WHERE email = ? OR davcna_stevilka = ?";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, identifikator);
+            stmt.setString(2, identifikator);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getBoolean("je_admin");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     private void izpisiVseTabele(Connection conn) {
@@ -48,7 +67,6 @@ public class DatabaseViewer extends JFrame {
                 ResultSetMetaData rsMeta = rs.getMetaData();
                 int columnCount = rsMeta.getColumnCount();
 
-                // Priprava podatkov za JTable
                 Vector<String> columnNames = new Vector<>();
                 for (int i = 1; i <= columnCount; i++) {
                     columnNames.add(rsMeta.getColumnName(i));
@@ -75,20 +93,6 @@ public class DatabaseViewer extends JFrame {
         } catch (SQLException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Napaka pri branju baze: " + e.getMessage(), "Napaka", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    // Glavni zagon za test
-    public static void main(String[] args) {
-        try {
-            Connection conn = DriverManager.getConnection(
-                    "jdbc:postgresql://zaklucni-delopst-3439.c.aivencloud.com:21525/defaultdb?sslmode=require",
-                    "avnadmin",
-                    "AVNS_28Co5bU1SYV6F4LHOPy"
-            );
-            SwingUtilities.invokeLater(() -> new DatabaseViewer(conn).setVisible(true));
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
     }
 }
