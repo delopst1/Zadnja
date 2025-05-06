@@ -1,4 +1,6 @@
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.sql.*;
 import java.util.Vector;
@@ -9,7 +11,7 @@ public class DatabaseViewer extends JFrame {
 
     public DatabaseViewer(Connection connection, String identifikator) {
         setTitle("Pregled baze podatkov");
-        setSize(900, 600);
+        setSize(1000, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
@@ -18,10 +20,16 @@ public class DatabaseViewer extends JFrame {
         add(tabbedPane, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        buttonPanel.setBackground(new Color(245, 248, 255));
         JButton btnOsvezi = new JButton("Osveži");
         JButton btnDodaj = new JButton("Dodaj");
         JButton btnUredi = new JButton("Uredi");
         JButton btnIzbrisi = new JButton("Izbriši");
+
+        styleButton(btnOsvezi);
+        styleButton(btnDodaj);
+        styleButton(btnUredi);
+        styleButton(btnIzbrisi);
 
         buttonPanel.add(btnOsvezi);
 
@@ -82,11 +90,17 @@ public class DatabaseViewer extends JFrame {
                 }
 
                 JTable table = new JTable(data, columnNames);
-                table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
-                table.setFillsViewportHeight(true);
-                table.setRowHeight(25);
+
+                // Skrij stolpec "id" (če obstaja)
+                int idColumnIndex = columnNames.indexOf("id");
+                if (idColumnIndex != -1) {
+                    table.removeColumn(table.getColumnModel().getColumn(idColumnIndex));
+                }
+
+                styleTable(table);
 
                 JScrollPane scrollPane = new JScrollPane(table);
+                scrollPane.setBorder(BorderFactory.createEmptyBorder());
                 tabbedPane.addTab(tableName, scrollPane);
             }
 
@@ -94,5 +108,65 @@ public class DatabaseViewer extends JFrame {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Napaka pri branju baze: " + e.getMessage(), "Napaka", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+
+    private void styleTable(JTable table) {
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        table.setRowHeight(30);
+        table.setShowHorizontalLines(true);
+        table.setGridColor(new Color(220, 220, 220));
+        table.setFillsViewportHeight(true);
+        table.setIntercellSpacing(new Dimension(0, 0));
+        table.setSelectionBackground(new Color(184, 207, 229));
+        table.setSelectionForeground(Color.BLACK);
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+
+        // Glava tabele
+        JTableHeader header = table.getTableHeader();
+        header.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 15));
+        header.setBackground(new Color(200, 220, 240));
+        header.setForeground(new Color(30, 30, 30));
+        header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(180, 180, 180)));
+
+        // Render vrstice z alternirajočo barvo in hover efektom
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable tbl, Object val, boolean isSelected, boolean hasFocus, int row, int col) {
+                Component c = super.getTableCellRendererComponent(tbl, val, isSelected, hasFocus, row, col);
+                if (isSelected) {
+                    c.setBackground(new Color(166, 202, 240));
+                } else {
+                    c.setBackground(row % 2 == 0 ? new Color(250, 250, 250) : new Color(235, 243, 255));
+                }
+                setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
+                return c;
+            }
+        });
+
+        // Scrollbar prilagoditev
+        JScrollBar verticalScrollBar = new JScrollBar(JScrollBar.VERTICAL);
+        verticalScrollBar.setUI(new javax.swing.plaf.basic.BasicScrollBarUI() {
+            @Override
+            protected void configureScrollBarColors() {
+                this.thumbColor = new Color(200, 200, 200);
+            }
+        });
+
+        JScrollPane scrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, table);
+        if (scrollPane != null) {
+            scrollPane.setVerticalScrollBar(verticalScrollBar);
+            scrollPane.getViewport().setBackground(Color.WHITE);
+            scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        }
+    }
+
+
+    private void styleButton(JButton button) {
+        button.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        button.setBackground(new Color(66, 133, 244));
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
     }
 }
