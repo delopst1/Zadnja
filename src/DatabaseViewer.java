@@ -71,7 +71,23 @@ public class DatabaseViewer extends JFrame {
                 String tableName = tables.getString("TABLE_NAME");
 
                 Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery("SELECT * FROM " + tableName);
+
+                // Prilagojena poizvedba za tabelo 'delo'
+                String query;
+                if (tableName.equalsIgnoreCase("delo")) {
+                    query = """
+                        SELECT d.naziv, d.placilo, d.prosta_mesta, 
+                               del.ime_podjetja AS delodajalec, 
+                               n.stevilka AS napotnica
+                        FROM delo d
+                        JOIN delodajalec del ON d.delodajalec_id = del.id
+                        JOIN napotnica n ON d.napotnica_id = n.id
+                    """;
+                } else {
+                    query = "SELECT * FROM " + tableName;
+                }
+
+                ResultSet rs = stmt.executeQuery(query);
                 ResultSetMetaData rsMeta = rs.getMetaData();
                 int columnCount = rsMeta.getColumnCount();
 
@@ -91,10 +107,15 @@ public class DatabaseViewer extends JFrame {
 
                 JTable table = new JTable(data, columnNames);
 
-                // Skrij stolpec "id" (če obstaja)
+                // Skrij stolpec 'id' in 'student_id', če obstajata
                 int idColumnIndex = columnNames.indexOf("id");
                 if (idColumnIndex != -1) {
                     table.removeColumn(table.getColumnModel().getColumn(idColumnIndex));
+                }
+
+                int studentIdColumnIndex = columnNames.indexOf("student_id");
+                if (studentIdColumnIndex != -1) {
+                    table.removeColumn(table.getColumnModel().getColumn(studentIdColumnIndex));
                 }
 
                 styleTable(table);
@@ -110,7 +131,6 @@ public class DatabaseViewer extends JFrame {
         }
     }
 
-
     private void styleTable(JTable table) {
         table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         table.setRowHeight(30);
@@ -122,14 +142,12 @@ public class DatabaseViewer extends JFrame {
         table.setSelectionForeground(Color.BLACK);
         table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
 
-        // Glava tabele
         JTableHeader header = table.getTableHeader();
         header.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 15));
         header.setBackground(new Color(200, 220, 240));
         header.setForeground(new Color(30, 30, 30));
         header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(180, 180, 180)));
 
-        // Render vrstice z alternirajočo barvo in hover efektom
         table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable tbl, Object val, boolean isSelected, boolean hasFocus, int row, int col) {
@@ -144,7 +162,6 @@ public class DatabaseViewer extends JFrame {
             }
         });
 
-        // Scrollbar prilagoditev
         JScrollBar verticalScrollBar = new JScrollBar(JScrollBar.VERTICAL);
         verticalScrollBar.setUI(new javax.swing.plaf.basic.BasicScrollBarUI() {
             @Override
@@ -160,7 +177,6 @@ public class DatabaseViewer extends JFrame {
             scrollPane.setBorder(BorderFactory.createEmptyBorder());
         }
     }
-
 
     private void styleButton(JButton button) {
         button.setFont(new Font("Segoe UI", Font.PLAIN, 14));
