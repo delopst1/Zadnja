@@ -89,6 +89,12 @@ public class RegisterForm extends JFrame {
                 String hashedPassword = PasswordHasher.hashPassword(plainPassword);
 
                 try (Connection conn = DatabaseManager.getConnection()) {
+                    // Popravek: posodobi sekvenco ID-jev glede na trenutno največjo vrednost v tabeli
+                    String updateSequence = "SELECT setval(pg_get_serial_sequence('student', 'id'), (SELECT MAX(id) FROM student))";
+                    PreparedStatement seqStmt = conn.prepareStatement(updateSequence);
+                    seqStmt.execute();
+
+                    // Registracija uporabnika
                     String sql = """
                         INSERT INTO student (
                             ime, priimek, email, telefon, datum_rojstva, emso, davcna_stevilka,
