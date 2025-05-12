@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.*;
 import java.util.Vector;
+import javax.swing.table.TableColumn;
 
 public class DatabaseViewer extends JFrame {
 
@@ -234,11 +235,15 @@ public class DatabaseViewer extends JFrame {
                 JTable table = new JTable(data, columnNames);
                 styleTable(table);
 
-                // SKRIJ STOLPCE, KI SE ZAČNEJO Z "id"
+                // SKRIJ SAMO STOLPEC Z IMENOM "id"
                 for (int i = columnNames.size() - 1; i >= 0; i--) {
                     String colName = columnNames.get(i).toLowerCase();
-                    if (colName.startsWith("id")) {
-                        table.removeColumn(table.getColumnModel().getColumn(i));
+                    if (colName.equals("id")) {
+                        TableColumn column = table.getColumnModel().getColumn(i);
+                        column.setMinWidth(0);
+                        column.setMaxWidth(0);
+                        column.setPreferredWidth(0);
+                        column.setResizable(false);
                     }
                 }
 
@@ -265,8 +270,7 @@ public class DatabaseViewer extends JFrame {
                     buttonPanel.add(btnDelete);
                     buttonPanel.add(btnUpdate);
 
-                    // Poveži gumbe s funkcijami (lahko implementiram, če želiš)
-                    // primer:
+                    // Poveži gumbe s funkcijami (implementiraj po potrebi)
                     // btnAdd.addActionListener(e -> dodajZapis(tableName));
                     // btnDelete.addActionListener(e -> izbrisiIzbranZapis(tableName, table));
                     // btnUpdate.addActionListener(e -> posodobiZapis(tableName, table));
@@ -284,6 +288,9 @@ public class DatabaseViewer extends JFrame {
         tablesPanel.revalidate();
         tablesPanel.repaint();
     }
+
+
+
 
 
     private void refreshMyWorkPanel(JPanel panel) {
