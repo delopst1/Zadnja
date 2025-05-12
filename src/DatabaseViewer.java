@@ -192,9 +192,11 @@ public class DatabaseViewer extends JFrame {
     private void refreshTables() {
         tablesPanel.removeAll();
         JTabbedPane tabbedPane = new JTabbedPane();
+
         try {
             DatabaseMetaData metaData = conn.getMetaData();
             ResultSet tables = metaData.getTables(null, null, "%", new String[]{"TABLE"});
+
             while (tables.next()) {
                 String tableName = tables.getString("TABLE_NAME");
                 Statement stmt = conn.createStatement();
@@ -231,8 +233,48 @@ public class DatabaseViewer extends JFrame {
 
                 JTable table = new JTable(data, columnNames);
                 styleTable(table);
+
+                // SKRIJ STOLPCE, KI SE ZAČNEJO Z "id"
+                for (int i = columnNames.size() - 1; i >= 0; i--) {
+                    String colName = columnNames.get(i).toLowerCase();
+                    if (colName.startsWith("id")) {
+                        table.removeColumn(table.getColumnModel().getColumn(i));
+                    }
+                }
+
+                JPanel tableContainer = new JPanel(new BorderLayout());
                 JScrollPane scrollPane = new JScrollPane(table);
-                tabbedPane.addTab(tableName, scrollPane);
+                tableContainer.add(scrollPane, BorderLayout.CENTER);
+
+                // GUMBI ZA ADMINA
+                if (jeAdmin) {
+                    JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
+                    JButton btnAdd = new JButton("Dodaj");
+                    JButton btnDelete = new JButton("Izbriši");
+                    JButton btnUpdate = new JButton("Posodobi");
+
+                    btnAdd.setBackground(new Color(52, 152, 219));
+                    btnAdd.setForeground(Color.WHITE);
+                    btnDelete.setBackground(new Color(231, 76, 60));
+                    btnDelete.setForeground(Color.WHITE);
+                    btnUpdate.setBackground(new Color(241, 196, 15));
+                    btnUpdate.setForeground(Color.BLACK);
+
+                    buttonPanel.add(btnAdd);
+                    buttonPanel.add(btnDelete);
+                    buttonPanel.add(btnUpdate);
+
+                    // Poveži gumbe s funkcijami (lahko implementiram, če želiš)
+                    // primer:
+                    // btnAdd.addActionListener(e -> dodajZapis(tableName));
+                    // btnDelete.addActionListener(e -> izbrisiIzbranZapis(tableName, table));
+                    // btnUpdate.addActionListener(e -> posodobiZapis(tableName, table));
+
+                    tableContainer.add(buttonPanel, BorderLayout.SOUTH);
+                }
+
+                tabbedPane.addTab(tableName, tableContainer);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -242,6 +284,7 @@ public class DatabaseViewer extends JFrame {
         tablesPanel.revalidate();
         tablesPanel.repaint();
     }
+
 
     private void refreshMyWorkPanel(JPanel panel) {
         panel.removeAll();
