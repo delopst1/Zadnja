@@ -4,6 +4,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
 
 public class RegisterForm extends JFrame {
     private JTextField imeField;
@@ -14,7 +16,7 @@ public class RegisterForm extends JFrame {
     private JTextField emsoField;
     private JTextField davcnaField;
     private JTextField racunField;
-    private JTextField krajIdField;
+    private JComboBox<String> krajComboBox; // Spremenjeno iz JTextField v JComboBox
     private JPasswordField gesloField;
     private JButton registerButton;
 
@@ -58,9 +60,9 @@ public class RegisterForm extends JFrame {
         racunField = new JTextField();
         panel.add(racunField);
 
-        panel.add(new JLabel("Kraj ID:"));
-        krajIdField = new JTextField();
-        panel.add(krajIdField);
+        panel.add(new JLabel("Izberi kraj:")); // Zamenjano z ComboBox
+        krajComboBox = new JComboBox<>();
+        panel.add(krajComboBox);
 
         panel.add(new JLabel("Geslo:"));
         gesloField = new JPasswordField();
@@ -71,6 +73,9 @@ public class RegisterForm extends JFrame {
         panel.add(registerButton);
 
         add(panel);
+
+        // Naloži kraje ob zagonu obrazca
+        loadKraji();
 
         registerButton.addActionListener(new ActionListener() {
             @Override
@@ -83,18 +88,38 @@ public class RegisterForm extends JFrame {
                 String emso = emsoField.getText().trim();
                 String davcna = davcnaField.getText().trim();
                 String stevilkaRacuna = racunField.getText().trim();
-                String krajIdText = krajIdField.getText().trim();
                 String plainPassword = new String(gesloField.getPassword()).trim();
+
+                // Preverimo, ali je kraj izbran
+                String selectedKraj = (String) krajComboBox.getSelectedItem();
+                if (selectedKraj == null || selectedKraj.isEmpty()) {
+                    JOptionPane.showMessageDialog(null, "Prosim izberite kraj!", "Napaka", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
 
                 String hashedPassword = PasswordHasher.hashPassword(plainPassword);
 
                 try (Connection conn = DatabaseManager.getConnection()) {
-                    // Popravek: posodobi sekvenco ID-jev glede na trenutno največjo vrednost v tabeli
+                    // Pridobimo kraj_id glede na izbrani kraj
+                    String krajQuery = "SELECT id FROM mesto WHERE naziv = ?";
+                    PreparedStatement krajStmt = conn.prepareStatement(krajQuery);
+                    krajStmt.setString(1, selectedKraj);
+                    ResultSet rs = krajStmt.executeQuery();
+
+                    int krajId = -1;
+                    if (rs.next()) {
+                        krajId = rs.getInt("id");
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Kraj z imenom '" + selectedKraj + "' ne obstaja!", "Napaka", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    // Popravek: sinhronizacija sekvence
                     String updateSequence = "SELECT setval(pg_get_serial_sequence('student', 'id'), (SELECT MAX(id) FROM student))";
                     PreparedStatement seqStmt = conn.prepareStatement(updateSequence);
                     seqStmt.execute();
 
-                    // Registracija uporabnika
+                    // Registracija
                     String sql = """
                         INSERT INTO student (
                             ime, priimek, email, telefon, datum_rojstva, emso, davcna_stevilka,
@@ -111,7 +136,7 @@ public class RegisterForm extends JFrame {
                     stmt.setString(6, emso);
                     stmt.setString(7, davcna);
                     stmt.setString(8, stevilkaRacuna);
-                    stmt.setInt(9, Integer.parseInt(krajIdText));
+                    stmt.setInt(9, krajId);
                     stmt.setString(10, hashedPassword);
 
                     int rowsInserted = stmt.executeUpdate();
@@ -130,5 +155,26 @@ public class RegisterForm extends JFrame {
                 }
             }
         });
+    }
+
+    private void loadKraji() {
+        try (Connection conn = DatabaseManager.getConnection()) {
+            String krajQuery = "SELECT naziv_poste FROM kraj";
+            PreparedStatement stmt = conn.prepareStatement(krajQuery);
+            ResultSet rs = stmt.executeQuery();
+
+            ArrayList<String> kraji = new ArrayList<>();
+            while (rs.next()) {
+                kraji.add(rs.getString("naziv_poste"));
+            }
+
+            // Napolnimo ComboBox s kraji
+            DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(kraji.toArray(new String[0]));
+            krajComboBox.setModel(model);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Napaka pri nalaganju seznam krajev.", "Napaka", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
