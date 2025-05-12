@@ -2,14 +2,23 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.sql.*;
 import java.util.Vector;
 
 public class DatabaseViewer extends JFrame {
 
     private JTabbedPane tabbedPane;
+    private boolean jeAdmin;
+    private String uporabnikEmail;
 
     public DatabaseViewer(Connection connection, String identifikator) {
+        this.uporabnikEmail = identifikator;
+
         setTitle("Pregled baze podatkov");
         setSize(1000, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -25,24 +34,29 @@ public class DatabaseViewer extends JFrame {
         JButton btnDodaj = new JButton("Dodaj");
         JButton btnUredi = new JButton("Uredi");
         JButton btnIzbrisi = new JButton("Izbriši");
+        JButton btnNaloziSliko = new JButton("Naloži osebno sliko");
 
         styleButton(btnOsvezi);
         styleButton(btnDodaj);
         styleButton(btnUredi);
         styleButton(btnIzbrisi);
+        styleButton(btnNaloziSliko);
 
         buttonPanel.add(btnOsvezi);
 
-        boolean jeAdmin = jeUporabnikAdmin(connection, identifikator);
+        jeAdmin = jeUporabnikAdmin(connection, identifikator);
         if (jeAdmin) {
             buttonPanel.add(btnDodaj);
             buttonPanel.add(btnUredi);
             buttonPanel.add(btnIzbrisi);
         }
 
+        buttonPanel.add(btnNaloziSliko);
         add(buttonPanel, BorderLayout.SOUTH);
 
         izpisiVseTabele(connection);
+
+        btnNaloziSliko.addActionListener(e -> izberiInShraniSliko(connection));
     }
 
     private boolean jeUporabnikAdmin(Connection conn, String identifikator) {
@@ -52,7 +66,6 @@ public class DatabaseViewer extends JFrame {
             stmt.setString(1, identifikator);
             stmt.setString(2, identifikator);
             ResultSet rs = stmt.executeQuery();
-
             if (rs.next()) {
                 return rs.getBoolean("je_admin");
             }
@@ -69,20 +82,16 @@ public class DatabaseViewer extends JFrame {
 
             while (tables.next()) {
                 String tableName = tables.getString("TABLE_NAME");
-
                 Statement stmt = conn.createStatement();
 
-                // Prilagojena poizvedba za tabelo 'delo'
                 String query;
                 if (tableName.equalsIgnoreCase("delo")) {
-                    query = """
-                        SELECT d.naziv, d.placilo, d.prosta_mesta, 
-                               del.ime_podjetja AS delodajalec, 
-                               n.stevilka AS napotnica
-                        FROM delo d
-                        JOIN delodajalec del ON d.delodajalec_id = del.id
-                        JOIN napotnica n ON d.napotnica_id = n.id
-                    """;
+                    query = "SELECT d.naziv, d.placilo, d.prosta_mesta, del.ime_podjetja AS delodajalec, n.stevilka AS napotnica " +
+                            "FROM delo d " +
+                            "JOIN delodajalec del ON d.delodajalec_id = del.id " +
+                            "JOIN napotnica n ON d.napotnica_id = n.id";
+                } else if (!jeAdmin && tableName.equalsIgnoreCase("student")) {
+                    query = "SELECT * FROM student WHERE email = '" + uporabnikEmail + "'";
                 } else {
                     query = "SELECT * FROM " + tableName;
                 }
@@ -107,27 +116,42 @@ public class DatabaseViewer extends JFrame {
 
                 JTable table = new JTable(data, columnNames);
 
-                // Skrij stolpec 'id' in 'student_id', če obstajata
                 int idColumnIndex = columnNames.indexOf("id");
                 if (idColumnIndex != -1) {
                     table.removeColumn(table.getColumnModel().getColumn(idColumnIndex));
                 }
-
                 int studentIdColumnIndex = columnNames.indexOf("student_id");
                 if (studentIdColumnIndex != -1) {
                     table.removeColumn(table.getColumnModel().getColumn(studentIdColumnIndex));
                 }
 
                 styleTable(table);
-
                 JScrollPane scrollPane = new JScrollPane(table);
                 scrollPane.setBorder(BorderFactory.createEmptyBorder());
                 tabbedPane.addTab(tableName, scrollPane);
             }
-
         } catch (SQLException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Napaka pri branju baze: " + e.getMessage(), "Napaka", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void izberiInShraniSliko(Connection conn) {
+        JFileChooser fileChooser = new JFileChooser();
+        int result = fileChooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = fileChooser.getSelectedFile();
+            try (FileInputStream fis = new FileInputStream(selectedFile)) {
+                String sql = "UPDATE student SET osebna_slika = ? WHERE email = ?";
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                stmt.setBinaryStream(1, fis, (int) selectedFile.length());
+                stmt.setString(2, uporabnikEmail);
+                stmt.executeUpdate();
+                JOptionPane.showMessageDialog(this, "Slika je bila uspešno naložena.");
+            } catch (IOException | SQLException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Napaka pri nalaganju slike: " + ex.getMessage());
+            }
         }
     }
 
