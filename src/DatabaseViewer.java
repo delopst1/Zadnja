@@ -48,11 +48,16 @@ public class DatabaseViewer extends JFrame {
         JButton btnMyWork = createSidebarButton("Moja dela");
         JButton btnLogout = createSidebarButton("Odjava");
 
+        // Onemogočimo gumb za "Pregled tabele" za ne-administratorske uporabnike
+        if (!jeAdmin) {
+            btnTables.setEnabled(false);
+        }
+
         topSidebarPanel.add(btnProfile);
         topSidebarPanel.add(btnTables);
         topSidebarPanel.add(btnMyWork);
-        topSidebarPanel.add(btnLogout);
         topSidebarPanel.add(btnAllJobs);
+        topSidebarPanel.add(btnLogout);
 
         add(topSidebarPanel, BorderLayout.NORTH);
 
@@ -281,6 +286,7 @@ public class DatabaseViewer extends JFrame {
         panel.revalidate();
         panel.repaint();
     }
+
     private void refreshAllJobsPanel(JPanel panel) {
         panel.removeAll();
         try {
@@ -343,37 +349,43 @@ public class DatabaseViewer extends JFrame {
         panel.repaint();
     }
 
-
-
     private void izberiInShraniSliko(Connection conn) {
         JFileChooser fileChooser = new JFileChooser();
         int result = fileChooser.showOpenDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
             File selectedFile = fileChooser.getSelectedFile();
-            try (FileInputStream fis = new FileInputStream(selectedFile)) {
+            try (FileInputStream
+
+
+
+
+
+
+
+                         fis = new FileInputStream(selectedFile)) {
+                byte[] imageBytes = fis.readAllBytes();
+
+
                 String sql = "UPDATE student SET osebna_slika = ? WHERE email = ?";
                 PreparedStatement stmt = conn.prepareStatement(sql);
-                stmt.setBinaryStream(1, fis, (int) selectedFile.length());
+                stmt.setBytes(1, imageBytes);
                 stmt.setString(2, uporabnikEmail);
                 stmt.executeUpdate();
-                JOptionPane.showMessageDialog(this, "Slika uspešno naložena.");
+
                 osveziProfilnoSliko();
-            } catch (IOException | SQLException ex) {
-                ex.printStackTrace();
-                JOptionPane.showMessageDialog(this, "Napaka pri nalaganju slike: " + ex.getMessage());
+            } catch (IOException | SQLException e) {
+                e.printStackTrace();
             }
         }
     }
 
-    private boolean jeUporabnikAdmin(Connection conn, String identifikator) {
+    private boolean jeUporabnikAdmin(Connection conn, String email) {
         try {
-            String sql = "SELECT je_admin FROM student WHERE email = ? OR davcna_stevilka = ?";
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setString(1, identifikator);
-            stmt.setString(2, identifikator);
+            PreparedStatement stmt = conn.prepareStatement("SELECT je_admin FROM student WHERE email = ?");
+            stmt.setString(1, email);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                return rs.getBoolean("je_admin");
+                return rs.getBoolean("je_admin"); // če je tip stolpca BOOLEAN
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -381,76 +393,47 @@ public class DatabaseViewer extends JFrame {
         return false;
     }
 
-    private void styleTable(JTable table) {
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        table.setRowHeight(30);
-        table.setShowHorizontalLines(true);
-        table.setGridColor(new Color(220, 220, 220));
-        table.setFillsViewportHeight(true);
-        table.setIntercellSpacing(new Dimension(0, 0));
-        table.setSelectionBackground(new Color(184, 207, 229));
-        table.setSelectionForeground(Color.BLACK);
-        table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+    private void prijaviNaDelo(int deloId) {
+        try {
+            PreparedStatement getStudentId = conn.prepareStatement("SELECT id FROM student WHERE email = ?");
+            getStudentId.setString(1, uporabnikEmail);
+            ResultSet rs = getStudentId.executeQuery();
+            if (rs.next()) {
+                int studentId = rs.getInt("id");
 
-        JTableHeader header = table.getTableHeader();
-        header.setFont(new Font("Segoe UI Semibold", Font.PLAIN, 15));
-        header.setBackground(new Color(200, 220, 240));
-        header.setForeground(new Color(30, 30, 30));
-        header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(180, 180, 180)));
+                PreparedStatement updateDelo = conn.prepareStatement("UPDATE delo SET student_id = ? WHERE id = ?");
+                updateDelo.setInt(1, studentId);
+                updateDelo.setInt(2, deloId);
+                updateDelo.executeUpdate();
+
+                JOptionPane.showMessageDialog(this, "Uspešno si se prijavil na delo.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     private JButton createSidebarButton(String text) {
         JButton button = new JButton(text);
-        button.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        button.setForeground(Color.WHITE);
-        button.setBackground(new Color(66, 133, 244));
         button.setFocusPainted(false);
-        button.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        button.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        button.setBackground(new Color(66, 133, 244));
+        button.setForeground(Color.WHITE);
+        button.setMargin(new Insets(10, 15, 10, 15));
         return button;
     }
-    private void prijaviNaDelo(int deloId) {
-        try {
-            // 1. Preveri, ali je delo že zasedeno
-            String checkQuery = "SELECT student_id FROM delo WHERE id = ?";
-            PreparedStatement checkStmt = conn.prepareStatement(checkQuery);
-            checkStmt.setInt(1, deloId);
-            ResultSet checkRs = checkStmt.executeQuery();
 
-            if (checkRs.next()) {
-                int currentStudentId = checkRs.getInt("student_id");
-                if (currentStudentId != 0) {
-                    JOptionPane.showMessageDialog(this, "To delo je že zasedeno.");
-                    return;
-                }
-            }
+    private void styleTable(JTable table) {
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        table.setRowHeight(25);
+        table.setGridColor(new Color(230, 230, 230));
+        JTableHeader header = table.getTableHeader();
+        header.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        header.setBackground(new Color(66, 133, 244));
+        header.setForeground(Color.WHITE);
 
-            // 2. Najdi prijavljenega študenta
-            String studentQuery = "SELECT id FROM student WHERE email = ?";
-            PreparedStatement stmt = conn.prepareStatement(studentQuery);
-            stmt.setString(1, uporabnikEmail);
-            ResultSet rs = stmt.executeQuery();
-
-            if (rs.next()) {
-                int studentId = rs.getInt("id");
-
-                // 3. Prijavi študenta
-                String update = "UPDATE delo SET student_id = ? WHERE id = ?";
-                PreparedStatement updateStmt = conn.prepareStatement(update);
-                updateStmt.setInt(1, studentId);
-                updateStmt.setInt(2, deloId);
-                int affectedRows = updateStmt.executeUpdate();
-
-                if (affectedRows > 0) {
-                    JOptionPane.showMessageDialog(this, "Uspešno si se prijavil na delo!");
-                } else {
-                    JOptionPane.showMessageDialog(this, "Napaka pri prijavi.");
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Napaka pri prijavi na delo: " + e.getMessage());
-        }
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        table.setDefaultRenderer(Object.class, centerRenderer);
     }
-
-
-}
+    }
