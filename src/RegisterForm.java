@@ -101,7 +101,7 @@ public class RegisterForm extends JFrame {
 
                 try (Connection conn = DatabaseManager.getConnection()) {
                     // Pridobimo kraj_id glede na izbrani kraj
-                    String krajQuery = "SELECT id FROM mesto WHERE naziv = ?";
+                    String krajQuery = "SELECT id FROM kraj WHERE naziv_poste = ?";
                     PreparedStatement krajStmt = conn.prepareStatement(krajQuery);
                     krajStmt.setString(1, selectedKraj);
                     ResultSet rs = krajStmt.executeQuery();
