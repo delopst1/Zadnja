@@ -44,6 +44,7 @@ public class DatabaseViewer extends JFrame {
 
         JButton btnProfile = createSidebarButton("Osebna stran");
         JButton btnTables = createSidebarButton("Pregled tabele");
+        JButton btnAllJobs = createSidebarButton("Vsa dela");
         JButton btnMyWork = createSidebarButton("Moja dela");
         JButton btnLogout = createSidebarButton("Odjava");
 
@@ -51,6 +52,7 @@ public class DatabaseViewer extends JFrame {
         topSidebarPanel.add(btnTables);
         topSidebarPanel.add(btnMyWork);
         topSidebarPanel.add(btnLogout);
+        topSidebarPanel.add(btnAllJobs);
 
         add(topSidebarPanel, BorderLayout.NORTH);
 
@@ -66,7 +68,8 @@ public class DatabaseViewer extends JFrame {
         mainPanel.add(profilePanel, "PROFILE");
         mainPanel.add(tablesPanel, "TABLES");
         mainPanel.add(myWorkPanel, "MY_WORK");
-
+        JPanel allJobsPanel = new JPanel(new BorderLayout());
+        mainPanel.add(allJobsPanel, "ALL_JOBS");
         add(mainPanel, BorderLayout.CENTER);
 
         // Dogodki
@@ -79,6 +82,11 @@ public class DatabaseViewer extends JFrame {
             refreshMyWorkPanel(myWorkPanel);
             showCard("MY_WORK");
         });
+        btnAllJobs.addActionListener(e -> {
+            refreshAllJobsPanel(allJobsPanel);
+            showCard("ALL_JOBS");
+        });
+
         btnLogout.addActionListener(e -> System.exit(0));
 
         showCard("PROFILE");
@@ -273,6 +281,68 @@ public class DatabaseViewer extends JFrame {
         panel.revalidate();
         panel.repaint();
     }
+    private void refreshAllJobsPanel(JPanel panel) {
+        panel.removeAll();
+        try {
+            String sql = """
+            SELECT d.id, d.naziv, d.placilo, d.prosta_mesta, del.ime_podjetja AS delodajalec, 
+                   n.stevilka AS napotnica, d.student_id
+            FROM delo d
+            JOIN delodajalec del ON d.delodajalec_id = del.id
+            JOIN napotnica n ON d.napotnica_id = n.id
+        """;
+
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery();
+            ResultSetMetaData rsMeta = rs.getMetaData();
+            int columnCount = rsMeta.getColumnCount();
+
+            Vector<String> columnNames = new Vector<>();
+            for (int i = 1; i <= columnCount; i++) {
+                columnNames.add(rsMeta.getColumnName(i));
+            }
+
+            Vector<Vector<Object>> data = new Vector<>();
+            while (rs.next()) {
+                Vector<Object> row = new Vector<>();
+                for (int i = 1; i <= columnCount; i++) {
+                    row.add(rs.getObject(i));
+                }
+                data.add(row);
+            }
+
+            JTable table = new JTable(data, columnNames);
+            styleTable(table);
+
+            JButton btnPrijavi = new JButton("Prijavi se na izbrano delo");
+            btnPrijavi.setBackground(new Color(46, 204, 113));
+            btnPrijavi.setForeground(Color.WHITE);
+            btnPrijavi.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+            btnPrijavi.addActionListener(e -> {
+                int selectedRow = table.getSelectedRow();
+                if (selectedRow != -1) {
+                    int deloId = (int) table.getValueAt(selectedRow, 0);
+                    prijaviNaDelo(deloId);
+                    refreshAllJobsPanel(panel);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Izberi vrstico za prijavo.");
+                }
+            });
+
+            JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            bottomPanel.add(btnPrijavi);
+
+            panel.add(new JScrollPane(table), BorderLayout.CENTER);
+            panel.add(bottomPanel, BorderLayout.SOUTH);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        panel.revalidate();
+        panel.repaint();
+    }
+
 
 
     private void izberiInShraniSliko(Connection conn) {
@@ -338,4 +408,49 @@ public class DatabaseViewer extends JFrame {
         button.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
         return button;
     }
+    private void prijaviNaDelo(int deloId) {
+        try {
+            // 1. Preveri, ali je delo že zasedeno
+            String checkQuery = "SELECT student_id FROM delo WHERE id = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkQuery);
+            checkStmt.setInt(1, deloId);
+            ResultSet checkRs = checkStmt.executeQuery();
+
+            if (checkRs.next()) {
+                int currentStudentId = checkRs.getInt("student_id");
+                if (currentStudentId != 0) {
+                    JOptionPane.showMessageDialog(this, "To delo je že zasedeno.");
+                    return;
+                }
+            }
+
+            // 2. Najdi prijavljenega študenta
+            String studentQuery = "SELECT id FROM student WHERE email = ?";
+            PreparedStatement stmt = conn.prepareStatement(studentQuery);
+            stmt.setString(1, uporabnikEmail);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                int studentId = rs.getInt("id");
+
+                // 3. Prijavi študenta
+                String update = "UPDATE delo SET student_id = ? WHERE id = ?";
+                PreparedStatement updateStmt = conn.prepareStatement(update);
+                updateStmt.setInt(1, studentId);
+                updateStmt.setInt(2, deloId);
+                int affectedRows = updateStmt.executeUpdate();
+
+                if (affectedRows > 0) {
+                    JOptionPane.showMessageDialog(this, "Uspešno si se prijavil na delo!");
+                } else {
+                    JOptionPane.showMessageDialog(this, "Napaka pri prijavi.");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Napaka pri prijavi na delo: " + e.getMessage());
+        }
+    }
+
+
 }
