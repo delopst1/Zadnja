@@ -297,13 +297,13 @@ public class DatabaseViewer extends JFrame {
         panel.removeAll();
         try {
             String sql = """
-            SELECT d.naziv, d.placilo, d.prosta_mesta, del.ime_podjetja AS delodajalec, 
-                   n.stevilka AS napotnica 
-            FROM delo d
-            JOIN delodajalec del ON d.delodajalec_id = del.id
-            JOIN napotnica n ON d.napotnica_id = n.id
-            JOIN student s ON d.student_id = s.id
-            WHERE s.email = ?
+        SELECT d.id, d.naziv, d.placilo, d.prosta_mesta, del.ime_podjetja AS delodajalec, 
+               n.stevilka AS napotnica 
+        FROM delo d
+        JOIN delodajalec del ON d.delodajalec_id = del.id
+        JOIN napotnica n ON d.napotnica_id = n.id
+        JOIN student s ON d.student_id = s.id
+        WHERE s.email = ?
         """;
 
             PreparedStatement stmt = conn.prepareStatement(sql);
@@ -330,9 +330,32 @@ public class DatabaseViewer extends JFrame {
             styleTable(table);
             JScrollPane scrollPane = new JScrollPane(table);
             panel.add(scrollPane, BorderLayout.CENTER);
+
+            // Gumb za odjavo
+            JButton btnOdjavi = new JButton("Odjavi se z izbranega dela");
+            btnOdjavi.setBackground(new Color(231, 76, 60));
+            btnOdjavi.setForeground(Color.WHITE);
+            btnOdjavi.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+            btnOdjavi.addActionListener(e -> {
+                int selectedRow = table.getSelectedRow();
+                if (selectedRow != -1) {
+                    int deloId = (int) table.getValueAt(selectedRow, 0);
+                    odjaviIzDela(deloId);
+                    refreshMyWorkPanel(panel);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Izberi vrstico za odjavo.");
+                }
+            });
+
+            JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            bottomPanel.add(btnOdjavi);
+            panel.add(bottomPanel, BorderLayout.SOUTH);
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
+
         panel.revalidate();
         panel.repaint();
     }
@@ -445,23 +468,44 @@ public class DatabaseViewer extends JFrame {
 
     private void prijaviNaDelo(int deloId) {
         try {
-            PreparedStatement getStudentId = conn.prepareStatement("SELECT id FROM student WHERE email = ?");
-            getStudentId.setString(1, uporabnikEmail);
-            ResultSet rs = getStudentId.executeQuery();
-            if (rs.next()) {
-                int studentId = rs.getInt("id");
+            // 1. Preveri ali je delo že zasedeno
+            PreparedStatement checkIfTaken = conn.prepareStatement(
+                    "SELECT student_id FROM delo WHERE id = ?");
+            checkIfTaken.setInt(1, deloId);
+            ResultSet rsCheck = checkIfTaken.executeQuery();
 
-                PreparedStatement updateDelo = conn.prepareStatement("UPDATE delo SET student_id = ? WHERE id = ?");
-                updateDelo.setInt(1, studentId);
-                updateDelo.setInt(2, deloId);
-                updateDelo.executeUpdate();
+            if (rsCheck.next()) {
+                int existingStudentId = rsCheck.getInt("student_id");
+                if (rsCheck.wasNull() || existingStudentId == 0) {
+                    // 2. Če ni zasedeno, dobi ID prijavljenega študenta
+                    PreparedStatement getStudentId = conn.prepareStatement(
+                            "SELECT id FROM student WHERE email = ?");
+                    getStudentId.setString(1, uporabnikEmail);
+                    ResultSet rs = getStudentId.executeQuery();
 
-                JOptionPane.showMessageDialog(this, "Uspešno si se prijavil na delo.");
+                    if (rs.next()) {
+                        int studentId = rs.getInt("id");
+
+                        // 3. Prijavi študenta na delo
+                        PreparedStatement updateDelo = conn.prepareStatement(
+                                "UPDATE delo SET student_id = ? WHERE id = ?");
+                        updateDelo.setInt(1, studentId);
+                        updateDelo.setInt(2, deloId);
+                        updateDelo.executeUpdate();
+
+                        JOptionPane.showMessageDialog(this, "Uspešno si se prijavil na delo.");
+                    }
+                } else {
+                    // 4. Če je že zasedeno
+                    JOptionPane.showMessageDialog(this, "To delo je že zasedeno.");
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Napaka pri prijavi na delo.");
         }
     }
+
 
     private JButton createSidebarButton(String text) {
         JButton button = new JButton(text);
@@ -486,4 +530,19 @@ public class DatabaseViewer extends JFrame {
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         table.setDefaultRenderer(Object.class, centerRenderer);
     }
+    private void odjaviIzDela(int deloId) {
+        try {
+            PreparedStatement stmt = conn.prepareStatement("UPDATE delo SET student_id = NULL WHERE id = ?");
+            stmt.setInt(1, deloId);
+            int rowsUpdated = stmt.executeUpdate();
+            if (rowsUpdated > 0) {
+                JOptionPane.showMessageDialog(this, "Uspešno si se odjavil z dela.");
+            } else {
+                JOptionPane.showMessageDialog(this, "Napaka pri odjavi z dela.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
+
+}
