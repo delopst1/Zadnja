@@ -468,43 +468,50 @@ public class DatabaseViewer extends JFrame {
 
     private void prijaviNaDelo(int deloId) {
         try {
-            // 1. Preveri ali je delo že zasedeno
-            PreparedStatement checkIfTaken = conn.prepareStatement(
-                    "SELECT student_id FROM delo WHERE id = ?");
-            checkIfTaken.setInt(1, deloId);
-            ResultSet rsCheck = checkIfTaken.executeQuery();
+            // 1. Pridobimo ID študenta
+            PreparedStatement getStudentId = conn.prepareStatement("SELECT id FROM student WHERE email = ?");
+            getStudentId.setString(1, uporabnikEmail);
+            ResultSet rs = getStudentId.executeQuery();
+            if (rs.next()) {
+                int studentId = rs.getInt("id");
 
-            if (rsCheck.next()) {
-                int existingStudentId = rsCheck.getInt("student_id");
-                if (rsCheck.wasNull() || existingStudentId == 0) {
-                    // 2. Če ni zasedeno, dobi ID prijavljenega študenta
-                    PreparedStatement getStudentId = conn.prepareStatement(
-                            "SELECT id FROM student WHERE email = ?");
-                    getStudentId.setString(1, uporabnikEmail);
-                    ResultSet rs = getStudentId.executeQuery();
-
-                    if (rs.next()) {
-                        int studentId = rs.getInt("id");
-
-                        // 3. Prijavi študenta na delo
-                        PreparedStatement updateDelo = conn.prepareStatement(
-                                "UPDATE delo SET student_id = ? WHERE id = ?");
-                        updateDelo.setInt(1, studentId);
-                        updateDelo.setInt(2, deloId);
-                        updateDelo.executeUpdate();
-
-                        JOptionPane.showMessageDialog(this, "Uspešno si se prijavil na delo.");
+                // 2. Preverimo, če je delo že zasedeno
+                PreparedStatement checkIfTaken = conn.prepareStatement("SELECT student_id FROM delo WHERE id = ?");
+                checkIfTaken.setInt(1, deloId);
+                ResultSet takenRS = checkIfTaken.executeQuery();
+                if (takenRS.next()) {
+                    Integer assignedStudent = takenRS.getInt("student_id");
+                    if (assignedStudent != 0) {
+                        JOptionPane.showMessageDialog(this, "To delo je že zasedeno!", "Napaka", JOptionPane.ERROR_MESSAGE);
+                        return;
                     }
-                } else {
-                    // 4. Če je že zasedeno
-                    JOptionPane.showMessageDialog(this, "To delo je že zasedeno.");
                 }
+
+                // 3. Preverimo, na koliko delih je že prijavljen
+                PreparedStatement countJobs = conn.prepareStatement("SELECT COUNT(*) AS count FROM delo WHERE student_id = ?");
+                countJobs.setInt(1, studentId);
+                ResultSet countRS = countJobs.executeQuery();
+                if (countRS.next()) {
+                    int currentCount = countRS.getInt("count");
+                    if (currentCount >= 2) {
+                        JOptionPane.showMessageDialog(this, "Ne moreš biti prijavljen na več kot 2 dela!", "Omejitev", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                }
+
+                // 4. Če ni zasedeno in ima dovolj prostora, ga prijavimo
+                PreparedStatement updateDelo = conn.prepareStatement("UPDATE delo SET student_id = ? WHERE id = ?");
+                updateDelo.setInt(1, studentId);
+                updateDelo.setInt(2, deloId);
+                updateDelo.executeUpdate();
+
+                JOptionPane.showMessageDialog(this, "Uspešno si se prijavil na delo.");
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Napaka pri prijavi na delo.");
         }
     }
+
 
 
     private JButton createSidebarButton(String text) {
