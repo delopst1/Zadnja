@@ -405,6 +405,8 @@ public class DatabaseViewer extends JFrame {
             }
 
             JTable table = new JTable(data, columnNames);
+
+// Skrij stolpec 'id' (če obstaja)
             for (int i = columnNames.size() - 1; i >= 0; i--) {
                 String colName = columnNames.get(i).toLowerCase();
                 if (colName.equals("id")) {
@@ -415,7 +417,9 @@ public class DatabaseViewer extends JFrame {
                     column.setResizable(false);
                 }
             }
+
             styleTable(table);
+
 
             JButton btnPrijavi = new JButton("Prijavi se na izbrano delo");
             btnPrijavi.setBackground(new Color(46, 204, 113));
