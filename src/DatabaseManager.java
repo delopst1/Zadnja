@@ -90,4 +90,21 @@ public class DatabaseManager {
             return false;
         }
     }
+    public static boolean izbrisi_delodajalca(int idDelodajalca) {
+        String sql = "{ call izbrisi_delodajalca(?) }";
+
+        try (Connection conn = getConnection();
+             CallableStatement stmt = conn.prepareCall(sql)) {
+
+            stmt.setInt(1, idDelodajalca);
+            stmt.execute();
+            return true;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
 }

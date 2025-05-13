@@ -310,10 +310,6 @@ public class DatabaseViewer extends JFrame {
                         }
                     });
 
-                    // Obstoječe: dodaj ostale listenerje po potrebi
-                    // btnDelete.addActionListener(e -> izbrisiIzbranZapis(tableName, table));
-                    // btnUpdate.addActionListener(e -> posodobiZapis(tableName, table));
-
                     tableContainer.add(buttonPanel, BorderLayout.SOUTH);
                 }
 
@@ -526,7 +522,7 @@ public class DatabaseViewer extends JFrame {
             stmt.setString(1, email);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                return rs.getBoolean("je_admin"); // če je tip stolpca BOOLEAN
+                return rs.getBoolean("je_admin");
             }
         } catch (SQLException e) {
             e.printStackTrace();
