@@ -328,6 +328,19 @@ public class DatabaseViewer extends JFrame {
 
             JTable table = new JTable(data, columnNames);
             styleTable(table);
+
+            // 🔽 SKRIJ STOLPEC "id"
+            for (int i = columnNames.size() - 1; i >= 0; i--) {
+                String colName = columnNames.get(i).toLowerCase();
+                if (colName.equals("id")) {
+                    TableColumn column = table.getColumnModel().getColumn(i);
+                    column.setMinWidth(0);
+                    column.setMaxWidth(0);
+                    column.setPreferredWidth(0);
+                    column.setResizable(false);
+                }
+            }
+
             JScrollPane scrollPane = new JScrollPane(table);
             panel.add(scrollPane, BorderLayout.CENTER);
 
@@ -360,6 +373,7 @@ public class DatabaseViewer extends JFrame {
         panel.repaint();
     }
 
+
     private void refreshAllJobsPanel(JPanel panel) {
         panel.removeAll();
         try {
@@ -391,6 +405,16 @@ public class DatabaseViewer extends JFrame {
             }
 
             JTable table = new JTable(data, columnNames);
+            for (int i = columnNames.size() - 1; i >= 0; i--) {
+                String colName = columnNames.get(i).toLowerCase();
+                if (colName.equals("id")) {
+                    TableColumn column = table.getColumnModel().getColumn(i);
+                    column.setMinWidth(0);
+                    column.setMaxWidth(0);
+                    column.setPreferredWidth(0);
+                    column.setResizable(false);
+                }
+            }
             styleTable(table);
 
             JButton btnPrijavi = new JButton("Prijavi se na izbrano delo");
