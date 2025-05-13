@@ -252,6 +252,7 @@ public class DatabaseViewer extends JFrame {
                 tableContainer.add(scrollPane, BorderLayout.CENTER);
 
                 // GUMBI ZA ADMINA
+                // GUMBI ZA ADMINA
                 if (jeAdmin) {
                     JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
@@ -270,13 +271,52 @@ public class DatabaseViewer extends JFrame {
                     buttonPanel.add(btnDelete);
                     buttonPanel.add(btnUpdate);
 
-                    // Poveži gumbe s funkcijami (implementiraj po potrebi)
-                    // btnAdd.addActionListener(e -> dodajZapis(tableName));
+                    // Klik na gumb "Dodaj" – prikaže obrazec za dodajanje delodajalca
+                    btnAdd.addActionListener(e -> {
+                        JTextField imePodjetjaField = new JTextField(20);
+                        JTextField stDelavcevField = new JTextField(5);
+
+                        JPanel formPanel = new JPanel(new GridLayout(0, 2));
+                        formPanel.add(new JLabel("Ime podjetja:"));
+                        formPanel.add(imePodjetjaField);
+                        formPanel.add(new JLabel("Število delavcev:"));
+                        formPanel.add(stDelavcevField);
+
+                        int result = JOptionPane.showConfirmDialog(
+                                null,
+                                formPanel,
+                                "Dodaj novega delodajalca",
+                                JOptionPane.OK_CANCEL_OPTION,
+                                JOptionPane.PLAIN_MESSAGE
+                        );
+
+                        if (result == JOptionPane.OK_OPTION) {
+                            String imePodjetja = imePodjetjaField.getText().trim();
+                            int stDelavcev = 0;
+                            try {
+                                stDelavcev = Integer.parseInt(stDelavcevField.getText().trim());
+                            } catch (NumberFormatException ex) {
+                                JOptionPane.showMessageDialog(null, "Število delavcev mora biti celo število.");
+                                return;
+                            }
+
+                            // Klic funkcije v bazi
+                            if (DatabaseManager.dodajDelodajalca(imePodjetja, stDelavcev)) {
+                                JOptionPane.showMessageDialog(null, "Delodajalec uspešno dodan.");
+                                // osveziTabelo(tableName, table); // če uporabljaš JTable
+                            } else {
+                                JOptionPane.showMessageDialog(null, "Napaka pri dodajanju delodajalca.");
+                            }
+                        }
+                    });
+
+                    // Obstoječe: dodaj ostale listenerje po potrebi
                     // btnDelete.addActionListener(e -> izbrisiIzbranZapis(tableName, table));
                     // btnUpdate.addActionListener(e -> posodobiZapis(tableName, table));
 
                     tableContainer.add(buttonPanel, BorderLayout.SOUTH);
                 }
+
 
                 tabbedPane.addTab(tableName, tableContainer);
             }

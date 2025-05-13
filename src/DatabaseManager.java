@@ -74,4 +74,20 @@ public class DatabaseManager {
 
         return null; // Uporabnik ni najden ali geslo napačno
     }
+    public static boolean dodajDelodajalca(String imePodjetja, int stDelavcev) {
+        String sql = "{ call dodaj_delodajalca(?, ?) }";  // klic funkcije, ne vstavljaj ID
+
+        try (Connection conn = getConnection();
+             CallableStatement stmt = conn.prepareCall(sql)) {
+
+            stmt.setString(1, imePodjetja);
+            stmt.setInt(2, stDelavcev);
+            stmt.execute();
+            return true;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }
